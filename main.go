@@ -1,19 +1,44 @@
 package main
 
 import (
+	"embed"
+	"io/fs"
+	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
+
+//go:embed frontend/dist/*
+var FS embed.FS
 
 func main() {
 	go func() { // 开启一个gin协程，防止阻塞调起chrome
 		gin.SetMode(gin.DebugMode)
 		router := gin.Default()
-		router.GET("/", func(c *gin.Context) {
-			c.Writer.Write([]byte("a test page"))
+		staticFiles, _ := fs.Sub(FS, "frontend/dist")
+		router.StaticFS("/static", http.FS(staticFiles))
+		router.NoRoute(func(c *gin.Context) {
+			path := c.Request.URL.Path
+			if strings.HasPrefix(path, "/static") {
+				reader, err := staticFiles.Open("index.html")
+				if err != nil {
+					log.Fatal("err", err)
+				}
+				defer reader.Close()
+				// 获取文件大小
+				stat, err := reader.Stat()
+				if err != nil {
+					log.Fatal("err", err)
+				}
+				c.DataFromReader(http.StatusOK, stat.Size(), "text/html;charset=utf-8", reader, nil)
+			} else {
+				c.Status(http.StatusNotFound)
+			}
 		})
 		router.Run(":8080")
 	}()
