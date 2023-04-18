@@ -1,21 +1,22 @@
 package main
 
 import (
-	"os"
-	"os/signal"
-	"syscall"
+	"os/exec"
 
-	"github.com/zserge/lorca"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	var ui lorca.UI
-	ui, _ = lorca.New("https://www.baidu.com", "", 800, 600, "--disable-sync", "--disable-translate")
-	chSignal := make(chan os.Signal, 1)
-	signal.Notify(chSignal, syscall.SIGINT, syscall.SIGTERM)
-	select {
-	case <-chSignal:
-	case <-ui.Done():
-	}
-	ui.Close()
+	go func() { // 开启一个gin协程，防止阻塞调起chrome
+		gin.SetMode(gin.ReleaseMode)
+		router := gin.Default()
+		router.GET("/", func(c *gin.Context) {
+			c.Writer.Write([]byte("a test page"))
+		})
+		router.Run(":8080")
+	}()
+	chromePath := "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+	cmd := exec.Command(chromePath, "--app=http://127.0.0.1:8080/")
+	cmd.Start()
+	select {}
 }
