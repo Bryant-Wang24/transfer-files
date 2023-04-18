@@ -43,7 +43,7 @@ func main() {
 		router.Run(":8080")
 	}()
 	chromePath := "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
-	cmd := exec.Command(chromePath, "--app=http://127.0.0.1:8080/")
+	cmd := exec.Command(chromePath, "--app=http://127.0.0.1:8080/static")
 	cmd.Start()
 	chSignal := make(chan os.Signal, 1)
 	signal.Notify(chSignal, os.Interrupt)
