@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"io/fs"
 	"io/ioutil"
 	"log"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/skip2/go-qrcode"
 )
 
 //go:embed frontend/dist/*
@@ -29,6 +31,7 @@ func main() {
 		router.POST("/api/v1/texts", TextsController)
 		router.GET("/api/v1/addresses", AddressesController)
 		router.GET("/uploads/:path", UploadsController)
+		router.GET("/api/v1/qrcodes", QrcodesController)
 		router.NoRoute(func(c *gin.Context) {
 			path := c.Request.URL.Path
 			if strings.HasPrefix(path, "/static") {
@@ -125,5 +128,19 @@ func UploadsController(c *gin.Context) {
 		c.File(target)
 	} else {
 		c.Status(http.StatusNotFound)
+	}
+}
+
+// QrcodesController 二维码生成
+func QrcodesController(c *gin.Context) {
+	if content := c.Query("content"); content != "" {
+		png, err := qrcode.Encode(content, qrcode.Medium, 256) // 生成二维码
+		if err != nil {
+			log.Fatal(err)
+		}
+		c.Data(http.StatusOK, "image/png", png) //返回二维码图片
+		fmt.Println("content", content)
+	} else {
+		c.Status(http.StatusBadRequest)
 	}
 }
