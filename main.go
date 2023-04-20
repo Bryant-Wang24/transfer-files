@@ -28,6 +28,7 @@ func main() {
 		router.StaticFS("/static", http.FS(staticFiles))
 		router.POST("/api/v1/texts", TextsController)
 		router.GET("/api/v1/addresses", AddressesController)
+		router.GET("/uploads/:path", UploadsController)
 		router.NoRoute(func(c *gin.Context) {
 			path := c.Request.URL.Path
 			if strings.HasPrefix(path, "/static") {
@@ -100,4 +101,29 @@ func AddressesController(c *gin.Context) {
 		}
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "ok", "addresses": result})
+}
+
+// GetUploadsDir 获取上传文件的目录
+func GetUploadsDir() (uploads string) {
+	exe, err := os.Executable() // 获取当前可执行文件的路径
+	if err != nil {
+		log.Fatal(err)
+	}
+	dir := filepath.Dir(exe) // 获取当前可执行文件的目录
+	uploads = filepath.Join(dir, "uploads")
+	return
+}
+
+// UploadsController 文件下载
+func UploadsController(c *gin.Context) {
+	if path := c.Param("path"); path != "" {
+		target := filepath.Join(GetUploadsDir(), path)
+		c.Header("Content-Disposition", "File Transfer")
+		c.Header("Content-Transfer-Encoding", "binary")
+		c.Header("Content-Disposition", "attachment; filename="+path)
+		c.Header("Content-Type", "application/octet-stream")
+		c.File(target)
+	} else {
+		c.Status(http.StatusNotFound)
+	}
 }
