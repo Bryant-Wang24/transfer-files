@@ -23,6 +23,7 @@ import (
 var FS embed.FS
 
 func main() {
+	port := "27149"
 	go func() { // 开启一个gin协程，防止阻塞调起chrome
 		gin.SetMode(gin.DebugMode)
 		router := gin.Default()
@@ -32,6 +33,7 @@ func main() {
 		router.GET("/api/v1/addresses", AddressesController)
 		router.GET("/uploads/:path", UploadsController)
 		router.GET("/api/v1/qrcodes", QrcodesController)
+		router.POST("/api/v1/files", FilesController)
 		router.NoRoute(func(c *gin.Context) {
 			path := c.Request.URL.Path
 			if strings.HasPrefix(path, "/static") {
@@ -50,10 +52,10 @@ func main() {
 				c.Status(http.StatusNotFound)
 			}
 		})
-		router.Run(":8080")
+		router.Run(":" + port)
 	}()
 	chromePath := "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
-	cmd := exec.Command(chromePath, "--app=http://127.0.0.1:8080/static")
+	cmd := exec.Command(chromePath, "--app=http://127.0.0.1:"+port+"/static")
 	cmd.Start()
 	chSignal := make(chan os.Signal, 1)
 	signal.Notify(chSignal, os.Interrupt)
@@ -143,4 +145,31 @@ func QrcodesController(c *gin.Context) {
 	} else {
 		c.Status(http.StatusBadRequest)
 	}
+}
+
+// FilesController 文件处理
+func FilesController(c *gin.Context) {
+	file, err := c.FormFile("raw")
+	if err != nil {
+		log.Fatal("err", err)
+	}
+	exe, err := os.Executable() // 获取当前可执行文件的路径
+	if err != nil {
+		log.Fatal(err)
+	}
+	dir := filepath.Dir(exe)                 // 获取当前可执行文件的目录
+	filename := uuid.New().String()          // 生成一个文件名
+	uploads := filepath.Join(dir, "uploads") // 拼接uploads目录的绝对路径
+	err = os.MkdirAll(uploads, os.ModePerm)  // 创建uploads目录
+	if err != nil {
+		log.Fatal(err)
+	}
+	fullpath := filepath.Join("uploads", filename+filepath.Ext(file.Filename)) // 拼接文件的绝对路径（不含exe 所在目录）
+	fileErr := c.SaveUploadedFile(file, filepath.Join(dir, fullpath))          // 保存文件
+	fmt.Print("fullpath：", fullpath)
+	fmt.Print("fileErr：", filepath.Join(dir, fullpath))
+	if fileErr != nil {
+		log.Fatal(err)
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "ok", "url": "/" + fullpath}) // 返回文件的绝对路径（ 不含exe 所在目录）
 }
