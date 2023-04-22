@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	c "example.com/m/server/controllers"
+	"example.com/m/server/ws"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,6 +18,12 @@ var FS embed.FS
 func Run(Port string) {
 	gin.SetMode(gin.DebugMode)
 	router := gin.Default()
+	hub := ws.NewHub()
+	go hub.Run()
+	router.GET("/ws", func(c *gin.Context) {
+		ws.HttpController(c, hub)
+	})
+
 	staticFiles, _ := fs.Sub(FS, "frontend/dist")
 	router.StaticFS("/static", http.FS(staticFiles))
 	router.POST("/api/v1/texts", c.TextsController)
