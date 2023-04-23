@@ -12,22 +12,32 @@ var Port = "27149"
 
 func main() {
 	chChromeDie := make(chan struct{})
-	go server.Run(Port)
-	go startBrowser(chChromeDie)
+	chBackendDie := make(chan struct{})
 	chSignal := listenToInterrupt()
-	select {
-	case <-chSignal:
-	case <-chChromeDie:
-		os.Exit(0)
+	go server.Run(Port)
+	go startBrowser(chChromeDie, chBackendDie)
+	for {
+		select {
+		case <-chSignal:
+			chBackendDie <- struct{}{}
+		case <-chChromeDie:
+			os.Exit(0)
+		}
 	}
 }
 
-func startBrowser(chChromeDie chan struct{}) {
+func startBrowser(chChromeDie chan struct{}, chBackendDie chan struct{}) {
 	chromePath := "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
 	cmd := exec.Command(chromePath, "--app=http://127.0.0.1:"+Port+"/static/index.html")
 	cmd.Start()
-	cmd.Wait()
-	chChromeDie <- struct{}{}
+	go func() {
+		<-chBackendDie
+		cmd.Process.Kill()
+	}()
+	go func() {
+		cmd.Wait()
+		chChromeDie <- struct{}{}
+	}()
 }
 
 func listenToInterrupt() chan os.Signal {
