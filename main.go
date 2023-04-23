@@ -1,9 +1,11 @@
 package main
 
 import (
+	"log"
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 
 	"example.com/m/server"
 )
@@ -28,7 +30,12 @@ func main() {
 
 func startBrowser(chChromeDie chan struct{}, chBackendDie chan struct{}) {
 	chromePath := "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
-	cmd := exec.Command(chromePath, "--app=http://127.0.0.1:"+Port+"/static/index.html")
+	userDataDir := filepath.Join(os.TempDir(), "chrome-user-data")
+	err := os.MkdirAll(userDataDir, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cmd := exec.Command(chromePath, "--user-data-dir="+userDataDir, "--app=http://127.0.0.1:"+Port+"/static/index.html")
 	cmd.Start()
 	go func() {
 		<-chBackendDie
